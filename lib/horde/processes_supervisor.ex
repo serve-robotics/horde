@@ -1021,7 +1021,7 @@ defmodule Horde.ProcessesSupervisor do
 
   defp remove_child_from_horde(state, pid) do
     {child_id, _, _, _, _, _} = Map.get(state.children, pid)
-    GenServer.cast(state.root_name, {:disown_child_process, child_id})
+    GenServer.cast(state.root_name, {:untrack_child_process, child_id})
   end
 
   defp delete_child(pid, %{children: children} = state) do
@@ -1065,7 +1065,7 @@ defmodule Horde.ProcessesSupervisor do
         GenServer.cast(state.root_name, {:update_child_pid, child_id, new_pid})
 
       _pid_deleted ->
-        GenServer.cast(state.root_name, {:disown_child_process, child_id})
+        GenServer.cast(state.root_name, {:untrack_child_process, child_id})
     end
   end
 
