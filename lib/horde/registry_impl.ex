@@ -170,12 +170,9 @@ defmodule Horde.RegistryImpl do
     %{state | nodes: Enum.map(members, fn {_name, node} -> node end) |> MapSet.new()}
   end
 
-  defp process_diffs(state, [diff | diffs]) do
-    process_diff(state, diff)
-    |> process_diffs(diffs)
+  defp process_diffs(state, diffs) do
+    Enum.reduce(diffs, state, &process_diff(&2, &1))
   end
-
-  defp process_diffs(state, []), do: state
 
   defp process_diff(state, {:add, {:member, member}, 1}) do
     new_members = MapSet.put(state.members, member)
