@@ -312,19 +312,25 @@ defmodule Horde.RegistryImpl do
   end
 
   def handle_call({:register, key, value, pid}, _from, state) do
-    Process.link(pid)
+    case lookup(state, key) do
+      [] ->
+        Process.link(pid)
 
-    DeltaCrdt.put(
-      crdt_name(state.name),
-      {:key, key},
-      {fully_qualified_name(state.name), pid, value},
-      :infinity
-    )
+        DeltaCrdt.put(
+          crdt_name(state.name),
+          {:key, key},
+          {fully_qualified_name(state.name), pid, value},
+          :infinity
+        )
 
-    add_key_to_pids_table(state, pid, key)
-    :ets.insert(state.keys_ets_table, {key, fully_qualified_name(state.name), {pid, value}})
+        add_key_to_pids_table(state, pid, key)
+        :ets.insert(state.keys_ets_table, {key, fully_qualified_name(state.name), {pid, value}})
 
-    {:reply, {:ok, self()}, state}
+        {:reply, {:ok, self()}, state}
+
+      [{pid, _value}] ->
+        {:reply, {:error, {:already_registered, pid}}, state}
+    end
   end
 
   def handle_call({:update_value, key, pid, value}, _from, state) do
@@ -364,6 +370,15 @@ defmodule Horde.RegistryImpl do
 
   def handle_call(:members, _from, state) do
     {:reply, MapSet.to_list(state.members), state}
+  end
+
+  defp lookup(state, key) do
+    with [{^key, _member, {pid, value}}] <- :ets.lookup(state.keys_ets_table, key),
+         true <- node(pid) != node() or Process.alive?(pid) do
+      [{pid, value}]
+    else
+      _ -> []
+    end
   end
 
   defp unregister_local(state, key) do
