@@ -218,24 +218,31 @@ defmodule Horde.RegistryImpl do
   end
 
   defp process_diff(state, {:add, {:key, key}, {member, pid, value}}) do
-    link_local_pid(pid)
+    # Ensure that this diff hasn't been superseded.  The CRDT has the best
+    # approximation of the "current state" of the system, representing future
+    # messages in the mailbox awaiting processing.  So, if the CRDT has a
+    # different process than this "add" diff, this diff has been superseded, and
+    # it should not be processed.
+    if process_matches_crdt?(state, key, pid) do
+      link_local_pid(pid)
 
-    add_key_to_pids_table(state, pid, key)
+      add_key_to_pids_table(state, pid, key)
 
-    with [{^key, _member, {other_pid, other_value}}] when other_pid != pid <-
-           :ets.lookup(state.keys_ets_table, key) do
-      # There was a conflict in the name registry, send the  losing PID
-      # an exit signal indicating it has lost the name registration.
+      with [{^key, _member, {other_pid, other_value}}] when other_pid != pid <-
+             :ets.lookup(state.keys_ets_table, key) do
+        # There was a conflict in the name registry, send the  losing PID
+        # an exit signal indicating it has lost the name registration.
 
-      unregister_local(state, key, other_pid)
+        unregister_local(state, key, other_pid)
 
-      Process.exit(other_pid, {:name_conflict, {key, other_value}, state.name, pid})
-    end
+        Process.exit(other_pid, {:name_conflict, {key, other_value}, state.name, pid})
+      end
 
-    :ets.insert(state.keys_ets_table, {key, member, {pid, value}})
+      :ets.insert(state.keys_ets_table, {key, member, {pid, value}})
 
-    for listener <- state.listeners do
-      send(listener, {:register, state.name, key, pid, value})
+      for listener <- state.listeners do
+        send(listener, {:register, state.name, key, pid, value})
+      end
     end
 
     state
@@ -250,6 +257,13 @@ defmodule Horde.RegistryImpl do
   defp process_diff(state, {:add, {:registry, key}, value}) do
     :ets.insert(state.registry_ets_table, {key, value})
     state
+  end
+
+  defp process_matches_crdt?(state, key, pid) do
+    match?(
+      {_member, ^pid, _value},
+      DeltaCrdt.get(crdt_name(state.name), {:key, key}, :infinity)
+    )
   end
 
   defp add_key_to_pids_table(state, pid, key) do
