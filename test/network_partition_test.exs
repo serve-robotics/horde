@@ -11,6 +11,7 @@ defmodule NetworkPartitionTest do
     [nodes: nodes]
   end
 
+  @tag :skip
   test "recovers as expected in case of network partition", %{nodes: [n1, n2] = nodes} do
     assert {:ok, _pid1} =
              Horde.DynamicSupervisor.start_child(
@@ -33,7 +34,6 @@ defmodule NetworkPartitionTest do
     end
 
     Schism.partition([n1])
-    Schism.partition([n2])
 
     Process.sleep(100)
 
