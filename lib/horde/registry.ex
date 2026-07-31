@@ -172,7 +172,7 @@ defmodule Horde.Registry do
            [
              name: name,
              listeners: flags.listeners,
-             meta: [{:transport, flags.transport} | (flags.meta || [])],
+             meta: [{:transport, flags.transport} | flags.meta || []],
              keys: flags.keys,
              members: members(flags.members, name)
            ]}
