@@ -19,23 +19,12 @@ defmodule Horde.NodeListener do
     do: Enum.map(nodes(), fn node -> {cluster, node} end)
 
   # GenServer callbacks
-
   def init(cluster) do
     :net_kernel.monitor_nodes(true, node_type: :visible)
     {:ok, cluster}
   end
 
   def handle_cast(:initial_set, cluster) do
-    set_members(cluster)
-    {:noreply, cluster}
-  end
-
-  def handle_info({:nodeup, _node, _node_type}, cluster) do
-    set_members(cluster)
-    {:noreply, cluster}
-  end
-
-  def handle_info({:nodedown, _node, _node_type}, cluster) do
     set_members(cluster)
     {:noreply, cluster}
   end

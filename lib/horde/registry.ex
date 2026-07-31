@@ -102,7 +102,8 @@ defmodule Horde.Registry do
       :keys,
       :distribution_strategy,
       :members,
-      :delta_crdt_options
+      :delta_crdt_options,
+      :transport
     ]
 
     {sup_options, start_options} = Keyword.split(options, keys)
@@ -132,6 +133,7 @@ defmodule Horde.Registry do
     meta = Keyword.get(options, :meta, nil)
     members = Keyword.get(options, :members, [])
     delta_crdt_options = Keyword.get(options, :delta_crdt_options, [])
+    transport = Keyword.get(options, :transport, Horde.ClusterTransport.Erlang)
 
     distribution_strategy =
       Keyword.get(
@@ -146,7 +148,8 @@ defmodule Horde.Registry do
       keys: keys,
       distribution_strategy: distribution_strategy,
       members: members,
-      delta_crdt_options: delta_crdt_options(delta_crdt_options)
+      delta_crdt_options: delta_crdt_options(delta_crdt_options),
+      transport: transport
     }
 
     {:ok, flags}
@@ -169,7 +172,7 @@ defmodule Horde.Registry do
            [
              name: name,
              listeners: flags.listeners,
-             meta: flags.meta,
+             meta: [{:transport, flags.transport} | (flags.meta || [])],
              keys: flags.keys,
              members: members(flags.members, name)
            ]}
@@ -248,9 +251,11 @@ defmodule Horde.Registry do
   def lookup({:via, _, {registry, name}}), do: lookup(registry, name)
 
   def lookup(registry, key) when is_atom(registry) do
+    transport = transport(registry)
+
     with [{^key, member, {pid, value}}] <- :ets.lookup(keys_ets_table(registry), key),
          true <- member_in_cluster?(registry, member),
-         true <- process_alive?(pid) do
+         true <- transport.process_alive?(pid) do
       [{pid, value}]
     else
       _ -> []
@@ -410,18 +415,16 @@ defmodule Horde.Registry do
   defp maybe_add_node_manager(children, :auto, name),
     do: children ++ [{Horde.NodeListener, name}]
 
+  defp maybe_add_node_manager(children, {:auto, listener}, name),
+    do: children ++ [{listener, name}]
+
   defp maybe_add_node_manager(children, _, _), do: children
 
-  defp process_alive?(pid) when node(pid) == node(), do: Process.alive?(pid)
-
-  defp process_alive?(pid) do
-    n = node(pid)
-
-    Node.list() |> Enum.member?(n) &&
-      :erpc.call(n, Process, :alive?, [pid])
-  catch
-    :error, {:erpc, :noconnection} -> false
-    type, reason -> :erlang.raise(type, reason, __STACKTRACE__)
+  defp transport(registry) do
+    case :ets.lookup(registry_ets_table(registry), :transport) do
+      [{:transport, mod}] -> mod
+      _ -> Horde.ClusterTransport.Erlang
+    end
   end
 
   defp member_in_cluster?(registry, member) do
@@ -440,6 +443,7 @@ defmodule Horde.Registry do
   end
 
   defp members(:auto, _name), do: :auto
+  defp members({:auto, _listener}, _name), do: :auto
 
   defp members(options, name) do
     if name in options do

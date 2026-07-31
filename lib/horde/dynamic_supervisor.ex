@@ -288,6 +288,9 @@ defmodule Horde.DynamicSupervisor do
   defp maybe_add_node_manager(children, :auto, name),
     do: children ++ [{Horde.NodeListener, name}]
 
+  defp maybe_add_node_manager(children, {:auto, listener}, name),
+    do: children ++ [{listener, name}]
+
   defp maybe_add_node_manager(children, _, _), do: children
 
   defp delta_crdt_options(options) do
@@ -299,6 +302,7 @@ defmodule Horde.DynamicSupervisor do
   end
 
   defp members(:auto, _name), do: :auto
+  defp members({:auto, _listener}, _name), do: :auto
 
   defp members(options, name) do
     if name in options do
