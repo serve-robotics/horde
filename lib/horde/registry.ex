@@ -175,7 +175,7 @@ defmodule Horde.Registry do
            ]}
         ]
         |> maybe_add_node_manager(flags.members, name)
-        |> Supervisor.init(strategy: :one_for_all)
+        |> Supervisor.init(strategy: :one_for_all, max_restarts: 0)
 
       :ignore ->
         :ignore

@@ -905,6 +905,21 @@ defmodule RegistryTest do
     end
   end
 
+  test "when part of a supervision tree, behaves as expected" do
+    start_supervised!(ASupervisionTree)
+
+    pid_initial = AServer.pid()
+
+    ASupervisionTree.registry()
+    |> Process.exit(:kill)
+
+    Process.sleep(100)
+
+    pid_final = AServer.pid()
+
+    assert pid_initial != pid_final
+  end
+
   defp register_task(registry, key, value) do
     parent = self()
 

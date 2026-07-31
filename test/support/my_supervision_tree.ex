@@ -17,6 +17,57 @@ defmodule MySupervisionTree do
   end
 end
 
+defmodule ASupervisionTree do
+  use Supervisor
+
+  def start_link(arg) do
+    Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_arg) do
+    registry_args = [
+      members: :auto,
+      keys: :unique,
+      name: :"h#{System.unique_integer([:positive])}"
+    ]
+
+    supervisor_args = [
+      members: :auto,
+      strategy: :one_for_one,
+      name: :"h#{System.unique_integer([:positive])}"
+    ]
+
+    children = [
+      {Horde.Registry, registry_args},
+      {Horde.DynamicSupervisor, supervisor_args},
+      AServer
+    ]
+
+    Supervisor.init(children, strategy: :rest_for_one)
+  end
+
+  def registry do
+    Supervisor.which_children(__MODULE__)
+    |> Enum.find_value(fn {_id, pid, _type, modules} -> modules == [Horde.Registry] && pid end)
+    |> Supervisor.which_children()
+    |> Enum.find_value(fn {_id, pid, _type, modules} ->
+      modules == [Horde.RegistryImpl] && pid
+    end)
+  end
+
+  def supervisor do
+    Supervisor.which_children(__MODULE__)
+    |> Enum.find_value(fn {_id, pid, _type, modules} ->
+      modules == [Horde.DynamicSupervisor] && pid
+    end)
+    |> Supervisor.which_children()
+    |> Enum.find_value(fn {_id, pid, _type, modules} ->
+      modules == [Horde.DynamicSupervisorImpl] && pid
+    end)
+  end
+end
+
 defmodule MyCluster do
   def set_members(cluster) do
     nodes = nodes(cluster)
@@ -225,5 +276,23 @@ defmodule MyServer do
   def handle_info({:EXIT, _, {:name_conflict, {{_, name}, _}, _registry, winner}}, state) do
     IO.inspect(conflict: name, looser: {self(), node(self())}, winner: {winner, node(winner)})
     {:stop, :shutdown, state}
+  end
+end
+
+defmodule AServer do
+  use GenServer
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  def pid do
+    GenServer.whereis(__MODULE__)
+  end
+
+  @impl GenServer
+  def init(_) do
+    Process.flag(:trap_exit, true)
+    {:ok, nil}
   end
 end
