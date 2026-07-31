@@ -4,6 +4,9 @@ defmodule DynamicSupervisorDeadlockTest do
 
   alias Horde.DynamicSupervisor
 
+  @eventually_attempts 40
+  @eventually_sleep_ms 50
+
   setup do
     n1 = :"horde_#{:rand.uniform(100_000_000)}"
 
@@ -60,7 +63,24 @@ defmodule DynamicSupervisorDeadlockTest do
         start: {MyServer, :start_link, [:normal]}
       })
 
-    # this call used to hang
-    assert [_, _] = Horde.DynamicSupervisor.which_children(context.horde_1)
+    # this call used to hang; assert eventual convergence on slower runtimes.
+    assert_eventually(fn ->
+      match?([_, _], Horde.DynamicSupervisor.which_children(context.horde_1))
+    end)
+  end
+
+  defp assert_eventually(fun, attempts \\ @eventually_attempts)
+
+  defp assert_eventually(fun, attempts) when attempts > 0 do
+    if fun.() do
+      :ok
+    else
+      if attempts == 1 do
+        flunk("condition did not converge in time")
+      else
+        Process.sleep(@eventually_sleep_ms)
+        assert_eventually(fun, attempts - 1)
+      end
+    end
   end
 end

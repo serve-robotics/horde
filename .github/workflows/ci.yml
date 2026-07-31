@@ -31,7 +31,7 @@ jobs:
       - run: mix format --check-formatted
         if: matrix.elixir-version == 1.15 && matrix.otp-version == 26
 
-      - run: mix test
+      - run: mix test --max-cases 8
 
   dialyzer:
     runs-on: ubuntu-latest
