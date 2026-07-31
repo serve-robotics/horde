@@ -30,7 +30,7 @@ defmodule Horde.UniformRandomDistribution do
 
   @doc """
   Quorum checks are not enforced, so the process will be
-  (re)started on  both sides of a netsplit.
+  (re)started on both sides of a netsplit.
   """
   @impl true
   @spec has_quorum?([Horde.DistributionStrategy.member()]) :: boolean()

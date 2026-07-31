@@ -231,7 +231,7 @@ defmodule Horde.DynamicSupervisorImpl do
     {:noreply, state}
   end
 
-  def handle_cast({:untrack_child_process, child_id}, state) do
+  def handle_cast({:release_child_process, child_id}, state) do
     {value, new_processes_by_id} = pop_item(state.processes_by_id, child_id)
 
     new_state =

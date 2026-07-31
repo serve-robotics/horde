@@ -3,7 +3,7 @@ defmodule Horde.UniformDistribution do
 
   @moduledoc """
   Distributes processes to nodes uniformly using a hash ring.
-
+  
   Given the *same* set of members, it will always start
   the same process on the same node.
   """

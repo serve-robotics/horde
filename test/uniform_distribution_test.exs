@@ -32,22 +32,26 @@ defmodule UniformDistributionTest do
     end
   end
 
-  property "is deterministic for the same input" do
+  property "is deterministic for the same child_spec and members" do
+    member =
+      ExUnitProperties.gen all(
+                             node_id <- integer(1..100_000),
+                             status <- StreamData.member_of([:alive]),
+                             name <- binary(),
+                             pid <- atom(:alias)
+                           ) do
+        %{node_id: node_id, status: status, pid: pid, name: "A#{name}"}
+      end
+
     check all(
-            identifier <- string(:alphanumeric, min_length: 1),
-            member_count <- integer(1..10)
+            members <- list_of(member, min_length: 1),
+            identifier <- string(:alphanumeric)
           ) do
-      members =
-        Enum.map(1..member_count, fn i ->
-          %{node_id: i, status: :alive, name: :"node_#{i}", pid: :pid}
-        end)
-
       child_spec = %{id: identifier, start: {identifier}}
+      result_a = Horde.UniformDistribution.choose_node(child_spec, members)
+      result_b = Horde.UniformDistribution.choose_node(child_spec, members)
 
-      result1 = Horde.UniformDistribution.choose_node(child_spec, members)
-      result2 = Horde.UniformDistribution.choose_node(child_spec, members)
-
-      assert result1 == result2
+      assert result_a == result_b
     end
   end
 
