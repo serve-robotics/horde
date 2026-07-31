@@ -778,4 +778,19 @@ defmodule DynamicSupervisorTest do
       assert %{ok: process_count} == result_count
     end
   end
+
+  test "when part of a supervision tree, behaves as expected" do
+    start_supervised!(ASupervisionTree)
+
+    pid_initial = AServer.pid()
+
+    ASupervisionTree.supervisor()
+    |> Process.exit(:kill)
+
+    Process.sleep(100)
+
+    pid_final = AServer.pid()
+
+    assert pid_initial != pid_final
+  end
 end
