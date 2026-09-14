@@ -428,55 +428,55 @@ defmodule Horde.DynamicSupervisorImpl do
   end
 
   defp handoff_processes(state) do
-    this_node = fully_qualified_name(state.name)
-
     all_items_values(state.processes_by_id)
     |> Enum.reduce(state, fn {current_node, child_spec, _child_pid}, state ->
       case choose_node(child_spec, state) do
-        {:ok, %{name: chosen_node}} ->
-          current_member = Map.get(state.members_info, current_node)
-
-          case {current_node, chosen_node} do
-            {same_node, same_node} ->
-              # process is running on the node on which it belongs
-
-              state
-
-            {^this_node, _other_node} ->
-              # process is running here but belongs somewhere else
-
-              case state.supervisor_options[:process_redistribution] do
-                :active ->
-                  handoff_child(child_spec, state)
-
-                :passive ->
-                  state
-              end
-
-            {_current_node, ^this_node} ->
-              # process is running on another node but belongs here
-
-              case current_member do
-                %{status: :dead} ->
-                  DeltaCrdt.delete(crdt_name(state.name), {:process, child_spec.id}, :infinity)
-                  {_response, state} = add_child(randomize_child_id(child_spec), state)
-
-                  state
-
-                _ ->
-                  state
-              end
-
-            {_other_node1, _other_node2} ->
-              # process is neither running here nor belongs here
-
-              state
-          end
-
-        {:error, _reason} ->
-          state
+        {:ok, %{name: chosen_node}} -> move_process(state, child_spec, current_node, chosen_node)
+        {:error, _reason} -> state
       end
     end)
+  end
+
+  defp move_process(state, child_spec, current_node, chosen_node) do
+    this_node = fully_qualified_name(state.name)
+    current_member = Map.get(state.members_info, current_node)
+
+    case {current_node, chosen_node} do
+      {same_node, same_node} ->
+        # process is running on the node on which it belongs
+
+        state
+
+      {^this_node, _other_node} ->
+        # process is running here but belongs somewhere else
+
+        case state.supervisor_options[:process_redistribution] do
+          :active ->
+            handoff_child(child_spec, state)
+
+          :passive ->
+            state
+        end
+
+      {_current_node, ^this_node} ->
+        # process is running on another node but belongs here
+
+        case current_member do
+          %{status: :dead} ->
+            DeltaCrdt.delete(crdt_name(state.name), {:process, child_spec.id}, :infinity)
+            {_response, state} = add_child(randomize_child_id(child_spec), state)
+
+            state
+
+          _ ->
+            state
+        end
+
+      {_other_node1, _other_node2} ->
+        # process is neither running here nor belongs here
+
+        state
+    end
   end
 
   defp update_processes(state, [diff | diffs]) do
