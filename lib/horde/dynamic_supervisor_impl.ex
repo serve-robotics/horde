@@ -417,16 +417,15 @@ defmodule Horde.DynamicSupervisorImpl do
     {:noreply, new_state}
   end
 
-  def has_membership_changed?([{:add, {:member_node_info, _}, _} = _diff | _diffs]), do: true
-  def has_membership_changed?([{:remove, {:member_node_info, _}} = _diff | _diffs]), do: true
-  def has_membership_changed?([{:add, {:member, _}, _} = _diff | _diffs]), do: true
-  def has_membership_changed?([{:remove, {:member, _}} = _diff | _diffs]), do: true
-
-  def has_membership_changed?([_diff | diffs]) do
-    has_membership_changed?(diffs)
+  def has_membership_changed?(diffs) do
+    Enum.any?(diffs, fn
+      {:add, {:member_node_info, _}, _} -> true
+      {:remove, {:member_node_info, _}} -> true
+      {:add, {:member, _}, _} -> true
+      {:remove, {:member, _}} -> true
+      _ -> false
+    end)
   end
-
-  def has_membership_changed?([]), do: false
 
   defp handoff_processes(state) do
     this_node = fully_qualified_name(state.name)
