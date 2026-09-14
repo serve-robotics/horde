@@ -419,15 +419,28 @@ defmodule Horde.DynamicSupervisorImpl do
 
   def has_membership_changed?(diffs) do
     Enum.any?(diffs, fn
-      {:add, {:member_node_info, _}, _} -> true
-      {:remove, {:member_node_info, _}} -> true
-      {:add, {:member, _}, _} -> true
-      {:remove, {:member, _}} -> true
-      _ -> false
+      {:add, {:member_node_info, _}, _} ->
+        true
+
+      {:remove, {:member_node_info, info}} ->
+        Logger.warning("Member info gone: #{inspect(info)}")
+        true
+
+      {:add, {:member, _}, _} ->
+        true
+
+      {:remove, {:member, info}} ->
+        Logger.warning("Member gone: #{inspect(info)}")
+        true
+
+      _ ->
+        false
     end)
   end
 
   defp handoff_processes(state) do
+    Logger.warning("Handing off processes")
+
     all_items_values(state.processes_by_id)
     |> Enum.reduce(state, fn {current_node, child_spec, _child_pid}, state ->
       case choose_node(child_spec, state) do
@@ -438,6 +451,10 @@ defmodule Horde.DynamicSupervisorImpl do
   end
 
   defp move_process(state, child_spec, current_node, chosen_node) do
+    Logger.warning(
+      "Moving #{inspect(child_spec)} from #{inspect(current_node)} to #{inspect(chosen_node)}"
+    )
+
     this_node = fully_qualified_name(state.name)
     current_member = Map.get(state.members_info, current_node)
 
