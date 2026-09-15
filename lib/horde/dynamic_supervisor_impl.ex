@@ -451,9 +451,14 @@ defmodule Horde.DynamicSupervisorImpl do
   end
 
   defp move_process(state, child_spec, current_node, chosen_node) do
-    Logger.warning(
-      "Moving #{inspect(child_spec)} from #{inspect(current_node)} to #{inspect(chosen_node)}"
-    )
+    if current_node != chosen_node,
+      do:
+        Logger.warning(
+          "Moving process",
+          child_spec: inspect(child_spec),
+          from: inspect(current_node),
+          to: inspect(chosen_node)
+        )
 
     this_node = fully_qualified_name(state.name)
     current_member = Map.get(state.members_info, current_node)
