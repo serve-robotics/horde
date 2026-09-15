@@ -439,7 +439,7 @@ defmodule Horde.DynamicSupervisorImpl do
   end
 
   defp handoff_processes(state) do
-    Logger.warning("Handing off processes")
+    Logger.warning("Handing off processes", name: state.name)
 
     all_items_values(state.processes_by_id)
     |> Enum.reduce(state, fn {current_node, child_spec, _child_pid}, state ->
@@ -455,6 +455,7 @@ defmodule Horde.DynamicSupervisorImpl do
       do:
         Logger.warning(
           "Moving process",
+          name: state.name,
           child_spec: inspect(child_spec),
           from: inspect(current_node),
           to: inspect(chosen_node)
