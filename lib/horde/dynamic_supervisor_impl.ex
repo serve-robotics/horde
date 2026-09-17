@@ -485,17 +485,25 @@ defmodule Horde.DynamicSupervisorImpl do
         # process is running on another node but belongs here
 
         case current_member do
+          # Current host is dead, re-add child
           %{status: :dead} ->
             Logger.warning("Horde | Node dead, re-adding child",
               dead_node: current_member,
               node: this_node
             )
 
-            DeltaCrdt.delete(crdt_name(state.name), {:process, child_spec.id}, :infinity)
-            {_response, state} = add_child(randomize_child_id(child_spec), state)
+            readd_child(state, child_spec)
 
-            state
+          # Current host data is missing; likely dead
+          nil ->
+            Logger.warning("Horde | Node dead, re-adding child",
+              dead_node: current_member,
+              node: this_node
+            )
 
+            readd_child(state, child_spec)
+
+          # Current host alive and well; it will facilitate handoff
           _ ->
             state
         end
@@ -505,6 +513,13 @@ defmodule Horde.DynamicSupervisorImpl do
 
         state
     end
+  end
+
+  defp readd_child(state, child_spec) do
+    DeltaCrdt.delete(crdt_name(state.name), {:process, child_spec.id}, :infinity)
+    {_response, state} = add_child(randomize_child_id(child_spec), state)
+
+    state
   end
 
   defp update_processes(state, [diff | diffs]) do
