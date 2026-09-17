@@ -41,7 +41,7 @@ defmodule Horde.DynamicSupervisorImpl do
   def init(options) do
     name = Keyword.get(options, :name)
 
-    Logger.info("Starting #{inspect(__MODULE__)} with name #{inspect(name)}")
+    Logger.info("Horde | Starting #{inspect(__MODULE__)} with name #{inspect(name)}")
 
     Process.flag(:trap_exit, true)
 
@@ -423,14 +423,14 @@ defmodule Horde.DynamicSupervisorImpl do
         true
 
       {:remove, {:member_node_info, info}} ->
-        Logger.warning("Member info gone: #{inspect(info)}")
+        Logger.warning("Horde | Member info gone: #{inspect(info)}")
         true
 
       {:add, {:member, _}, _} ->
         true
 
       {:remove, {:member, info}} ->
-        Logger.warning("Member gone: #{inspect(info)}")
+        Logger.warning("Horde | Member gone: #{inspect(info)}")
         true
 
       _ ->
@@ -439,7 +439,7 @@ defmodule Horde.DynamicSupervisorImpl do
   end
 
   defp handoff_processes(state) do
-    Logger.warning("Handing off processes", name: state.name)
+    Logger.warning("Horde | Handing off processes", name: state.name)
 
     all_items_values(state.processes_by_id)
     |> Enum.reduce(state, fn {current_node, child_spec, _child_pid}, state ->
@@ -486,6 +486,11 @@ defmodule Horde.DynamicSupervisorImpl do
 
         case current_member do
           %{status: :dead} ->
+            Logger.warning("Horde | Node dead, re-adding child",
+              dead_node: current_member,
+              node: this_node
+            )
+
             DeltaCrdt.delete(crdt_name(state.name), {:process, child_spec.id}, :infinity)
             {_response, state} = add_child(randomize_child_id(child_spec), state)
 
@@ -606,6 +611,8 @@ defmodule Horde.DynamicSupervisorImpl do
   end
 
   defp set_members(members, state) do
+    Logger.info("Horde | Changing members of #{state.name} to #{inspect(members)}")
+
     members = Enum.map(members, &fully_qualified_name/1)
 
     uninitialized_new_members_info =
@@ -805,6 +812,7 @@ defmodule Horde.DynamicSupervisorImpl do
         {[resp | responses], update_state_with_child(child_spec, child_pid, state)}
 
       {:error, error}, {responses, state} ->
+        Logger.error("Horde | Child failed to start", reason: error)
         {[{:error, error} | responses], state}
 
       :ignore, {responses, state} ->
