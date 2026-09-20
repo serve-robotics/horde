@@ -489,7 +489,8 @@ defmodule Horde.DynamicSupervisorImpl do
           %{status: :dead} ->
             Logger.warning("Horde | Node dead, re-adding child",
               dead_node: current_member,
-              node: this_node
+              node: this_node,
+              child_spec: inspect(child_spec)
             )
 
             readd_child(state, child_spec)
@@ -498,7 +499,8 @@ defmodule Horde.DynamicSupervisorImpl do
           nil ->
             Logger.warning("Horde | Node dead, re-adding child",
               dead_node: current_member,
-              node: this_node
+              node: this_node,
+              child_spec: inspect(child_spec)
             )
 
             readd_child(state, child_spec)
