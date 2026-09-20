@@ -829,7 +829,7 @@ defmodule Horde.DynamicSupervisorImpl do
         {[resp | responses], update_state_with_child(child_spec, child_pid, state)}
 
       {:error, error}, {responses, state} ->
-        Logger.error("Horde | Child failed to start", reason: error)
+        Logger.error("Horde | Child failed to start", reason: inspect(error))
         {[{:error, error} | responses], state}
 
       :ignore, {responses, state} ->
